@@ -9,9 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/czerwonk/ping_exporter/config"
 	"github.com/digineo/go-ping"
 	mon "github.com/digineo/go-ping/monitor"
+
+	"github.com/czerwonk/ping_exporter/config"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -22,19 +23,25 @@ import (
 const version string = "1.0.0"
 
 var (
-	showVersion   = kingpin.Flag("version", "Print version information").Default().Bool()
-	listenAddress = kingpin.Flag("web.listen-address", "Address on which to expose metrics and web interface").Default(":9427").String()
-	metricsPath   = kingpin.Flag("web.telemetry-path", "Path under which to expose metrics").Default("/metrics").String()
-	configFile    = kingpin.Flag("config.path", "Path to config file").Default("").String()
-	pingInterval  = kingpin.Flag("ping.interval", "Interval for ICMP echo requests").Default("5s").Duration()
-	pingTimeout   = kingpin.Flag("ping.timeout", "Timeout for ICMP echo request").Default("4s").Duration()
-	pingSize      = kingpin.Flag("ping.size", "Payload size for ICMP echo requests").Default("56").Uint16()
-	historySize   = kingpin.Flag("ping.history-size", "Number of results to remember per target").Default("10").Int()
-	dnsRefresh    = kingpin.Flag("dns.refresh", "Interval for refreshing DNS records and updating targets accordingly (0 if disabled)").Default("1m").Duration()
-	dnsNameServer = kingpin.Flag("dns.nameserver", "DNS server used to resolve hostname of targets").Default("").String()
-	disableIPv6   = kingpin.Flag("options.disable-ipv6", "Disable DNS from resolving IPv6 AAAA records").Default().Bool()
-	logLevel      = kingpin.Flag("log.level", "Only log messages with the given severity or above. Valid levels: [debug, info, warn, error, fatal]").Default("info").String()
-	targets       = kingpin.Arg("targets", "A list of targets to ping").Strings()
+	showVersion                 = kingpin.Flag("version", "Print version information").Default().Bool()
+	listenAddress               = kingpin.Flag("web.listen-address", "Address on which to expose metrics and web interface").Default(":9427").String()
+	metricsPath                 = kingpin.Flag("web.telemetry-path", "Path under which to expose metrics").Default("/metrics").String()
+	serverUseTLS                = kingpin.Flag("web.tls.enabled", "Enable TLS for web server, default is false").Default().Bool()
+	serverTlsCertFile           = kingpin.Flag("web.tls.cert-file", "The certificate file for the web server").Default("").String()
+	serverTlsKeyFile            = kingpin.Flag("web.tls.key-file", "The key file for the web server").Default("").String()
+	serverTlsCAFile             = kingpin.Flag("web.tls.ca-file", "The certificate authority file for the web server").Default("").String()
+	serverMutualAuthEnabled     = kingpin.Flag("web.tls.mutual-auth-enabled", "Enable TLS client mutual authentication, default is false").Default().Bool()
+	serverInsecureSkipTLSVerify = kingpin.Flag("web.tls.insecure-skip-tls-verify", "If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure. Default is false").Default().Bool()
+	configFile                  = kingpin.Flag("config.path", "Path to config file").Default("").String()
+	pingInterval                = kingpin.Flag("ping.interval", "Interval for ICMP echo requests").Default("5s").Duration()
+	pingTimeout                 = kingpin.Flag("ping.timeout", "Timeout for ICMP echo request").Default("4s").Duration()
+	pingSize                    = kingpin.Flag("ping.size", "Payload size for ICMP echo requests").Default("56").Uint16()
+	historySize                 = kingpin.Flag("ping.history-size", "Number of results to remember per target").Default("10").Int()
+	dnsRefresh                  = kingpin.Flag("dns.refresh", "Interval for refreshing DNS records and updating targets accordingly (0 if disabled)").Default("1m").Duration()
+	dnsNameServer               = kingpin.Flag("dns.nameserver", "DNS server used to resolve hostname of targets").Default("").String()
+	disableIPv6                 = kingpin.Flag("options.disable-ipv6", "Disable DNS from resolving IPv6 AAAA records").Default().Bool()
+	logLevel                    = kingpin.Flag("log.level", "Only log messages with the given severity or above. Valid levels: [debug, info, warn, error, fatal]").Default("info").String()
+	targets                     = kingpin.Arg("targets", "A list of targets to ping").Strings()
 )
 
 var (
