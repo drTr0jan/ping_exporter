@@ -226,6 +226,8 @@ func CanReadCertAndKey(certPath, keyPath string) (bool, error) {
 }
 
 func startServer(monitor *mon.Monitor) {
+	var err error
+
 	log.Infof("Starting ping exporter (Version: %s)", version)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, indexHTML, *metricsPath)
@@ -243,9 +245,14 @@ func startServer(monitor *mon.Monitor) {
 	})
 	http.Handle(*metricsPath, h)
 
-	if *serverUseTLS {
+	server := http.Server{
+		Addr: *listenAddress,
+	}
 
-		tlsConfig := &tls.Config{
+	log.Infof("Listening for %s on %s", *metricsPath, *listenAddress)
+
+	if *serverUseTLS {
+		server.TLSConfig = &tls.Config{
 			//ServerName:         opts.tlsServerName,
 			RootCAs:            x509.NewCertPool(),
 			InsecureSkipVerify: *serverInsecureSkipTLSVerify,
@@ -253,7 +260,7 @@ func startServer(monitor *mon.Monitor) {
 
 		if *serverTlsCAFile != "" {
 			if ca, err := os.ReadFile(*serverTlsCAFile); err == nil {
-				tlsConfig.RootCAs.AppendCertsFromPEM(ca)
+				server.TLSConfig.RootCAs.AppendCertsFromPEM(ca)
 			}
 		}
 
@@ -264,15 +271,18 @@ func startServer(monitor *mon.Monitor) {
 		if canReadCertAndKey {
 			cert, err := tls.LoadX509KeyPair(*serverTlsCertFile, *serverTlsKeyFile)
 			if err == nil {
-				tlsConfig.Certificates = []tls.Certificate{cert}
+				server.TLSConfig.Certificates = []tls.Certificate{cert}
 			} else {
 				return
 			}
 		}
+
+		err = server.ListenAndServeTLS("", "")
+	} else {
+		err = server.ListenAndServe()
 	}
 
-	log.Infof("Listening for %s on %s", *metricsPath, *listenAddress)
-	log.Fatal(http.ListenAndServe(*listenAddress, nil))
+	log.Fatal(err)
 }
 
 func loadConfig() (*config.Config, error) {
