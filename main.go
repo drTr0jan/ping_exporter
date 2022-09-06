@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net"
 	"net/http"
@@ -189,6 +191,40 @@ func refreshDNS(targets []*target, monitor *mon.Monitor, disableIPv6 bool) {
 	}
 }
 
+// If the file represented by path exists and
+// readable, returns true otherwise returns false.
+func canReadFile(path string) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+
+	defer f.Close()
+
+	return true
+}
+
+// CanReadCertAndKey returns true if the certificate and key files already exists,
+// otherwise returns false. If lost one of cert and key, returns error.
+func CanReadCertAndKey(certPath, keyPath string) (bool, error) {
+	certReadable := canReadFile(certPath)
+	keyReadable := canReadFile(keyPath)
+
+	if certReadable == false && keyReadable == false {
+		return false, nil
+	}
+
+	if certReadable == false {
+		return false, fmt.Errorf("error reading %s, certificate and key must be supplied as a pair", certPath)
+	}
+
+	if keyReadable == false {
+		return false, fmt.Errorf("error reading %s, certificate and key must be supplied as a pair", keyPath)
+	}
+
+	return true, nil
+}
+
 func startServer(monitor *mon.Monitor) {
 	log.Infof("Starting ping exporter (Version: %s)", version)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -206,6 +242,34 @@ func startServer(monitor *mon.Monitor) {
 		ErrorHandling: promhttp.ContinueOnError,
 	})
 	http.Handle(*metricsPath, h)
+
+	if *serverUseTLS {
+
+		tlsConfig := &tls.Config{
+			//ServerName:         opts.tlsServerName,
+			RootCAs:            x509.NewCertPool(),
+			InsecureSkipVerify: *serverInsecureSkipTLSVerify,
+		}
+
+		if *serverTlsCAFile != "" {
+			if ca, err := os.ReadFile(*serverTlsCAFile); err == nil {
+				tlsConfig.RootCAs.AppendCertsFromPEM(ca)
+			}
+		}
+
+		canReadCertAndKey, err := CanReadCertAndKey(*serverTlsCertFile, *serverTlsKeyFile)
+		if err != nil {
+			return
+		}
+		if canReadCertAndKey {
+			cert, err := tls.LoadX509KeyPair(*serverTlsCertFile, *serverTlsKeyFile)
+			if err == nil {
+				tlsConfig.Certificates = []tls.Certificate{cert}
+			} else {
+				return
+			}
+		}
+	}
 
 	log.Infof("Listening for %s on %s", *metricsPath, *listenAddress)
 	log.Fatal(http.ListenAndServe(*listenAddress, nil))
