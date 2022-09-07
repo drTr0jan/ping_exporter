@@ -11,10 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/czerwonk/ping_exporter/config"
 	"github.com/digineo/go-ping"
 	mon "github.com/digineo/go-ping/monitor"
-
-	"github.com/czerwonk/ping_exporter/config"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
