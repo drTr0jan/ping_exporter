@@ -31,7 +31,7 @@ var (
 	serverTlsCertFile       = kingpin.Flag("web.tls.cert-file", "The certificate file for the web server").Default("").String()
 	serverTlsKeyFile        = kingpin.Flag("web.tls.key-file", "The key file for the web server").Default("").String()
 	serverMutualAuthEnabled = kingpin.Flag("web.tls.mutual-auth-enabled", "Enable TLS client mutual authentication, default is false").Default().Bool()
-	serverTlsCAFile         = kingpin.Flag("web.tls.ca-file", "The certificate authority file for client's certificates verification").Default("").String()
+	serverTlsCAFile         = kingpin.Flag("web.tls.ca-file", "The certificate authority file for client's certificate verification").Default("").String()
 	configFile              = kingpin.Flag("config.path", "Path to config file").Default("").String()
 	pingInterval            = kingpin.Flag("ping.interval", "Interval for ICMP echo requests").Default("5s").Duration()
 	pingTimeout             = kingpin.Flag("ping.timeout", "Timeout for ICMP echo request").Default("4s").Duration()
@@ -219,7 +219,9 @@ func startServer(monitor *mon.Monitor) {
 			return
 		}
 
-		server.TLSConfig = &tls.Config{}
+		server.TLSConfig = &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		}
 
 		server.TLSConfig.Certificates = make([]tls.Certificate, 1)
 		server.TLSConfig.Certificates[0], err = tls.LoadX509KeyPair(*serverTlsCertFile, *serverTlsKeyFile)
@@ -237,8 +239,8 @@ func startServer(monitor *mon.Monitor) {
 					log.Errorf("Loading CA error: %v", err)
 					return
 				} else {
-					server.TLSConfig.RootCAs = x509.NewCertPool()
-					server.TLSConfig.RootCAs.AppendCertsFromPEM(ca)
+					server.TLSConfig.ClientCAs = x509.NewCertPool()
+					server.TLSConfig.ClientCAs.AppendCertsFromPEM(ca)
 				}
 			}
 		} else {
